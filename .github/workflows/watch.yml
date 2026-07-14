@@ -1,0 +1,42 @@
+name: harvard-tour-watch
+
+on:
+  schedule:
+    # :07 and :37 rather than :00/:30 — GitHub drops scheduled runs under load,
+    # and load peaks at the top of the hour.
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  # Never let two runs race to commit state.
+  group: harvard-tour-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check for newly published tour weeks
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python check_tours.py --notify
+
+      - name: Record any new week
+        run: |
+          if git diff --quiet -- known_events.json; then
+            echo "state unchanged; nothing to commit"
+            exit 0
+          fi
+          git config user.name "harvard-tour-watch[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Record newly published tour week(s)" -- known_events.json
+          git push
