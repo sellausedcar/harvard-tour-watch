@@ -185,6 +185,15 @@ def main():
     )
     args = ap.parse_args()
 
+    # Check the topic up front. If it's missing we cannot alert about anything,
+    # not even about being broken, so fail cleanly rather than mid-notification.
+    if args.notify:
+        try:
+            ntfy_topic()
+        except WatcherError as exc:
+            sys.stderr.write("watcher misconfigured: %s\n" % exc)
+            return 2
+
     try:
         events = current_events()
     except WatcherError as exc:
