@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "harvard-tour-pinger",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-24",
+  "triggers": {
+    "crons": ["7,37 * * * *"]
+  }
+}
