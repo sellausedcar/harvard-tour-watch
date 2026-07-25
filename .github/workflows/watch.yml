@@ -1,10 +1,9 @@
 name: harvard-tour-watch
 
 on:
-  schedule:
-    # :07 and :37 rather than :00/:30 — GitHub drops scheduled runs under load,
-    # and load peaks at the top of the hour.
-    - cron: "7,37 * * * *"
+  # Triggered by the Cloudflare pinger at :07 and :37 via workflow_dispatch.
+  # No schedule: trigger — GitHub's own scheduler fires at unpredictable
+  # times and would double up checks alongside the pinger.
   workflow_dispatch:
 
 permissions:
