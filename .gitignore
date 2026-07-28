@@ -1,0 +1,7 @@
+# Wrangler local state — caches the Cloudflare account id; never publish (repo is public)
+pinger/.wrangler/
+pinger/node_modules/
+
+# Python
+__pycache__/
+*.pyc
