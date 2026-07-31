@@ -132,8 +132,16 @@ def push(title, body, priority="default", click=None):
         data=body.encode("utf-8"),
         headers=headers,
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        resp.read()
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+    except OSError as exc:
+        # urlopen raises URLError/HTTPError (both OSError) when ntfy is
+        # unreachable. Without this the broken-watcher path below dies with an
+        # unhandled traceback — the one path that most needs to fail cleanly.
+        # Neither exception renders the URL in str(), so the topic stays out of
+        # the message; keep it that way, as this text lands in a public log.
+        raise WatcherError("ntfy push failed: %s" % exc)
 
 
 def pretty_window(event):
@@ -212,7 +220,14 @@ def main():
         return 2
 
     if args.notify:
-        notify_new(events)
+        try:
+            notify_new(events)
+        except WatcherError as exc:
+            # notify_new saves state only after every push succeeds, so a failed
+            # push leaves known_events.json untouched and the next run retries.
+            # Exiting 2 makes Actions email about it rather than failing quietly.
+            sys.stderr.write("watcher error: %s\n" % exc)
+            return 2
         return 0
 
     print(json.dumps(events, indent=2))

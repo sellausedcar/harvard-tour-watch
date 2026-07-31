@@ -9,7 +9,10 @@ diff the set of event IDs on the organizer page against the ones already seen.
 
 ## How it runs
 
-A GitHub Actions workflow (`.github/workflows/watch.yml`) runs every 30 minutes and executes:
+A Cloudflare Worker (`pinger/`) fires on a cron every 5 minutes and dispatches
+`.github/workflows/watch.yml` through the GitHub API. The workflow deliberately has no `schedule:`
+trigger of its own — GitHub's scheduler fires at unpredictable times and would double up checks
+alongside the pinger. Each dispatched run executes:
 
 ```bash
 NTFY_TOPIC=<secret> python check_tours.py --notify
@@ -26,13 +29,18 @@ from a fresh checkout with no memory of the last one.
 
 ## Credentials
 
-By design, **nothing here holds a long-lived credential.** The workflow commits using the
-`GITHUB_TOKEN` that GitHub injects automatically — scoped to this repository, expiring when the job
-ends. The only secret is `NTFY_TOPIC` (the notification channel name), stored as an encrypted repo
-secret.
+The workflow commits using the `GITHUB_TOKEN` that GitHub injects automatically — scoped to this
+repository, expiring when the job ends. `NTFY_TOPIC` (the notification channel name) is an encrypted
+repo secret; it is never written in the code and never reaches stdout, stderr, or a run log, which
+matters because this repo is public and so are its Actions logs.
 
-This is deliberate: an earlier version ran on a cloud agent that required sharing an account-wide
-GitHub token, which was the reason it was scrapped.
+One long-lived credential does exist: the Cloudflare Worker holds a GitHub PAT (`GH_PAT`, a Worker
+secret) so it can dispatch the workflow. Dispatching needs only `actions: write` on this one
+repository — keep it fine-grained and scoped exactly that narrowly, and nothing else.
+
+The narrowness is the whole point. An earlier version ran on a cloud agent that required an
+account-wide token with `repo` scope over every repository the account could see, and that is the
+reason that version was scrapped.
 
 ## Notes
 
@@ -41,7 +49,11 @@ GitHub token, which was the reason it was scrapped.
 - Availability comes from the JSON-LD `AggregateOffer` block on each event page. Per-timeslot seat
   counts are deliberately not scraped: Eventbrite loads those over an authenticated XHR that isn't
   reachable without a real browser.
-- The cron fires at `:07`/`:37` rather than `:00`/`:30` because GitHub delays or drops scheduled runs
-  under load, which peaks at the top of the hour.
+- The 5-minute cadence depends on this repo being **public**, where Actions minutes are free and
+  unlimited. Private repos get 2,000 min/month on the Free plan and every job rounds up to a whole
+  minute, so 5-minute checks would exhaust the month's quota in about a week — after which the
+  workflow simply stops being runnable and the watcher goes *quietly* dead, which is the one failure
+  mode this project is built to prevent. **If this repo is ever made private, drop the Worker cron
+  back to `7,37 * * * *` in the same sitting.**
 
 Run `python check_tours.py` with no flags to just print what's currently listed.

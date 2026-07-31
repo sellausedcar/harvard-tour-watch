@@ -3,7 +3,14 @@
   "name": "harvard-tour-pinger",
   "main": "src/index.js",
   "compatibility_date": "2026-07-24",
+  // Every 5 minutes, offset to :01/:06/:11/... rather than :00/:05/:10/... —
+  // schedulers are busiest on round minutes, and the top of the hour worst of all.
+  //
+  // Free only because the repo is PUBLIC, where Actions minutes are unlimited.
+  // If it is ever made private the 2,000 min/month cap applies, and this MUST
+  // drop back to something like "7,37 * * * *" in the same sitting — otherwise
+  // the quota runs out mid-month and the workflow stops firing *silently*.
   "triggers": {
-    "crons": ["7,37 * * * *"]
+    "crons": ["1-59/5 * * * *"]
   }
 }
