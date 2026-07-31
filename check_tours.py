@@ -17,6 +17,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -80,7 +81,32 @@ def parse_event(html, url, event_id):
     raise WatcherError("no Event JSON-LD found on %s" % url)
 
 
-def current_events():
+def current_events(attempts=2, delay=30):
+    """Fetch and parse, retrying once before declaring the watcher broken.
+
+    A single bad read is not evidence of breakage. On 2026-07-31 two runs at
+    10:01 and 10:06 UTC saw zero events and alerted; the next run parsed the
+    page fine, and a new week was detected normally two hours later. The page
+    had briefly rendered without events.
+
+    A genuine markup change fails every attempt, so one retry suppresses the
+    transient case without weakening real detection. Retries are logged to
+    stderr — a run that recovers still shows the blip in its log.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            return _current_events_once()
+        except WatcherError as exc:
+            if attempt == attempts:
+                raise
+            sys.stderr.write(
+                "watcher: attempt %d/%d failed (%s); retrying in %ds\n"
+                % (attempt, attempts, exc, delay)
+            )
+            time.sleep(delay)
+
+
+def _current_events_once():
     html = fetch(ORGANIZER_URL)
     seen, events = set(), []
     for match in EVENT_RE.finditer(html):
