@@ -1,7 +1,9 @@
 name: harvard-tour-watch
 
 on:
-  # Triggered by the Cloudflare pinger at :07 and :37 via workflow_dispatch.
+  # Triggered by the Cloudflare pinger via workflow_dispatch. The cadence lives
+  # in pinger/wrangler.jsonc and varies by day of week — do not restate it here,
+  # this comment has already gone stale once.
   # No schedule: trigger — GitHub's own scheduler fires at unpredictable
   # times and would double up checks alongside the pinger.
   workflow_dispatch:
