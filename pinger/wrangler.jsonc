@@ -1,40 +1,62 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "harvard-tour-pinger",
-  "main": "src/index.js",
-  "compatibility_date": "2026-07-24",
-  // Two cadences, selected by day of week. Cron runs in UTC, not local time.
-  //
-  //   Thu-Fri  every 5 min   — both real detections landed on a Friday (Week of
-  //                            08/3 at Fri 07-31 12:16Z), so this is the window
-  //                            that actually needs low latency
-  //   Sat-Wed  every 30 min  — nothing has ever been published on these days
-  //
-  // Days are spelled, not numbered, and that is deliberate. Cloudflare's
-  // day-of-week field runs 1 = Sunday .. 7 = Saturday, NOT the usual 0 = Sunday
-  // .. 6 = Saturday. Found the hard way: "1,31 * * * 0,1,2,3,6" was rejected
-  // (`code 10100: invalid cron string`, because 0 is out of range) while "4,5"
-  // was accepted in the same request — and under Cloudflare's numbering 4,5 is
-  // Wed-Thu, not Thu-Fri. Valid syntax, wrong days, no error. The rejection of
-  // the other leg is the only reason that did not ship. Names cannot drift.
-  //
-  // Deliberately encoded as one schedule rather than toggled by hand before and
-  // after each Friday: a manual switch has a "forgot to change it back" failure
-  // mode and this has none. Together the two legs cover all seven days with no
-  // overlap — check that if you edit either one.
-  //
-  // Minutes are offset off :00/:30 — schedulers are busiest on round minutes,
-  // and the top of the hour worst of all.
-  //
-  // The 5-minute leg is free only because the repo is PUBLIC, where Actions
-  // minutes are unlimited. If it is ever made private the 2,000 min/month cap
-  // applies and BOTH legs MUST drop back to something like "7,37 * * * *" in
-  // the same sitting — otherwise the quota runs out mid-month and the workflow
-  // stops firing *silently*.
-  "triggers": {
-    "crons": [
-      "1-59/5 * * * THU,FRI",
-      "1,31 * * * SAT,SUN,MON,TUE,WED"
-    ]
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "harvard-tour-pinger",
+	"main": "src/index.js",
+	"compatibility_date": "2026-07-24",
+	// Two cadences, selected by day of week. Cron runs in UTC, not local time.
+	//
+	//   Thu-Fri  every 5 min   — both real detections landed on a Friday (Week of
+	//                            08/3 at Fri 07-31 12:16Z), so this is the window
+	//                            that actually needs low latency
+	//   Sat-Wed  every 30 min  — nothing has ever been published on these days
+	//
+	// Days are spelled, not numbered, and that is deliberate. Cloudflare's
+	// day-of-week field runs 1 = Sunday .. 7 = Saturday, NOT the usual 0 = Sunday
+	// .. 6 = Saturday. Found the hard way: "1,31 * * * 0,1,2,3,6" was rejected
+	// (`code 10100: invalid cron string`, because 0 is out of range) while "4,5"
+	// was accepted in the same request — and under Cloudflare's numbering 4,5 is
+	// Wed-Thu, not Thu-Fri. Valid syntax, wrong days, no error. The rejection of
+	// the other leg is the only reason that did not ship. Names cannot drift.
+	//
+	// Deliberately encoded as one schedule rather than toggled by hand before and
+	// after each Friday: a manual switch has a "forgot to change it back" failure
+	// mode and this has none. Together the two legs cover all seven days with no
+	// overlap — check that if you edit either one.
+	//
+	// Minutes are offset off :00/:30 — schedulers are busiest on round minutes,
+	// and the top of the hour worst of all.
+	//
+	// The 5-minute leg is free only because the repo is PUBLIC, where Actions
+	// minutes are unlimited. If it is ever made private the 2,000 min/month cap
+	// applies and BOTH legs MUST drop back to something like "7,37 * * * *" in
+	// the same sitting — otherwise the quota runs out mid-month and the workflow
+	// stops firing *silently*.
+	"triggers": {
+		"crons": [
+			"1-59/5 * * * THU,FRI",
+			"1,31 * * * SAT,SUN,MON,TUE,WED"
+		]
+	},
+	// Seen-event state for the Worker-side check. The Worker starts cold on every
+	// firing and cannot reach known_events.json, which lives in the repo where only
+	// the Actions job can read it — so this leg keeps its own copy.
+	//
+	// MUST be seeded before the first firing. An empty namespace makes every
+	// currently-listed week look new: one spurious push today, and more if the
+	// organizer has published further ahead by then.
+	//
+	//   npx wrangler kv key put --remote --binding TOUR_STATE \
+	//     known_event_ids --path ../known_events.json
+	//
+	// Seed from the repo's own state file, and `git fetch` first — state is written
+	// by the Actions runner and lands on origin, so a stale clone seeds stale.
+	//
+	// Free tier is nowhere near binding: 100k reads/day against ~117 used, and
+	// writes happen only when a new week actually appears.
+	"kv_namespaces": [
+		{
+			"binding": "TOUR_STATE",
+			"id": "c53d3b147cd2400fb483a3489dbcf8ea"
+		}
+	]
 }
