@@ -1,5 +1,18 @@
 # harvard-tour-watch
 
+> **Retired 2026-08-07.** The tour was booked, so the watcher was decommissioned: Cloudflare Worker
+> and KV namespace deleted, repository archived. Nothing below is still running.
+>
+> Two things are worth knowing before reusing any of this. First, the organizer page is served
+> through CloudFront with `s-maxage=600` and `stale-while-revalidate=43200`, and it honours neither a
+> cache-busting query string nor a `no-cache` request header — so an anonymous scraper reads a copy
+> that is routinely ~10 minutes stale and may, in the tail, be hours stale. Detection latency is
+> floored by that cache, not by the poll interval, and the 5-minute cadence documented below could
+> never have delivered 5-minute latency. On the last day a manual browser check found the new week
+> before 08:30 ET; this watcher did not see it until 08:47 ET. Second, the Worker-side fallback check
+> added the day before was failing its ntfy push with `HTTP 429` and never recorded that week at all.
+> Both are described in full in the session log.
+
 Watches the [Harvard University Visitor Center Eventbrite page](https://www.eventbrite.com/o/harvard-university-visitor-center-30492393010)
 and pushes a phone notification when a **new week of tour dates** is published.
 
